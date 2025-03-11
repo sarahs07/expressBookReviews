@@ -30,7 +30,11 @@ regd_users.post("/login", (req,res) => {
   }
 
   if(authenticatedUser(username, password)){
-    return res.json({token: jwt.sign({username}, JWT_STRING, {expiresIn: '1h'})});
+    let accessToken = jwt.sign({username}, JWT_STRING, {expiresIn: '1h'});
+    
+    req.session.authorization = { accessToken, username};
+    return res.status(200).send("User successfully logged in.")
+
   }
 
   return res.status(401).json({message: "Invalid username and/or password"});
@@ -39,13 +43,31 @@ regd_users.post("/login", (req,res) => {
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
   //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const review = req.query.review;
+  const isbn = req.params.isbn;
+  const username = req.session.authorization.username;
+
+  const map = new Map(Object.entries(books));
+  if(map.has(isbn) && map.get(isbn).author === username){
+    books[isbn].reviews = review;
+    return res.status(201).json({message: "Review updated", book: books[isbn]});
+  } else {
+    map.set(isbn, {reviews: review, author: username});
+    books = Object.fromEntries(map);
+    return res.status(201).json({message: "Review added", books});
+  }
 });
 
 regd_users.delete("/auth/review/:isbn", (req, res) => {
   //Write your code here
-  console.log(req);
-  return res.status(300).json({message: "Yet to be implemented"});
+  const bookIsbn = req.params.isbn;
+  if(req.user.username == books[bookIsbn].author){
+    books[bookIsbn].reviews = "";
+    return res.status(201).json({message: "Review successfully deleted"});
+  } else {
+    return res.status(403).json({message: 'Unable to delete review'})
+  }
+
 
 });
 
